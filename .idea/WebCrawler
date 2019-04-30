@@ -1,0 +1,64 @@
+
+# Simple web crawler trying to move from a random wikipedia article to a predefined target article with a fixed maximal number of steps. based on the Udacity Course.
+import requests as req
+from bs4 import BeautifulSoup as sp
+import time
+import urllib
+
+# Set up the random first link with wiki option Special:Random and a target site which will finish +-
+start_url = "https://en.wikipedia.org/wiki/Special:Random"
+target_url = "https://en.wikipedia.org/wiki/Philosophy"
+
+# Find the first link to a wikipedia article if available on the opened page
+
+def find_first_link(url):
+
+    # Get the response from the url link
+    response = req.get(url)
+    html = response.text
+    # Use beautiful soup to make the repsonse easier to use
+    soup = sp(html, "html.parser")
+    # The html part that is containing the main body of the article
+    article_content = soup.find(id="mw-content-text").find(class_="mw-parser-output")
+    article_link = None
+
+    # Search for the link if available in the text
+
+    for link in article_content.find_all("p", recursive=False):
+        if link.find('a', recursive=False):
+            article_link=link.find('a', recursive=False).get("href")
+            break
+
+    if not article_link:
+        return
+    # Use the urlib to join the base url and the link in the article(the articles have short links)
+    first_link = urllib.parse.urljoin("https://en.wikipedia.org/", article_link)
+
+    return first_link
+
+article_chain = [start_url]
+# Define the stop conditions to break the loop
+def continue_crawl(search_history, target_url, max_steps=25):
+
+    if target_url == search_history[len(search_history)-1]:
+        print("Target article found")
+        return False
+    if len(search_history) > max_steps:
+        print("The search has gone too long")
+        return False
+    if search_history[-1] in search_history[:-1]:
+        print("Seems to programme has stuck in a loop")
+        return False
+    else:
+        return True
+# Set up the loop moving from the base article to the target article
+while continue_crawl(article_chain, target_url, 35):
+    print(article_chain[-1])
+
+    first_link = find_first_link(article_chain[-1])
+    if not first_link:
+        print("We've arrived at an article with no links, aborting search!")
+        break
+    article_chain.append(first_link)
+    # Wait so as not to flood the Wikipedia Servers
+    time.sleep(2)
